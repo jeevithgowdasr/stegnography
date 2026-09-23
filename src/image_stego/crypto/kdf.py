@@ -3,7 +3,6 @@
 import os
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
 
 SALT_LENGTH = 16
 PBKDF2_ITERATIONS = 100_000
@@ -38,6 +37,5 @@ def derive_key(password: str, salt: bytes, iterations: int = PBKDF2_ITERATIONS) 
         length=KEY_LENGTH,
         salt=salt,
         iterations=iterations,
-        backend=default_backend()
     )
     return kdf.derive(password_bytes)

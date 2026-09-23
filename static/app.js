@@ -1,5 +1,5 @@
 /**
- * StegoCrypt Web Client Application Logic
+ * StegoCrypt Studio Web Client Application Logic
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -67,18 +67,26 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastCoverDataUrl = null;
   let lastStegoDataUrl = null;
   let lastDiffDataUrl = null;
+  let copyTimeoutId = null;
 
   // =================================================================
-  // Tab Navigation
+  // Tab Navigation with ARIA State Management
   // =================================================================
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      tabBtns.forEach(b => b.classList.remove('active'));
+      tabBtns.forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+      });
       tabContents.forEach(c => c.classList.remove('active'));
 
       btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
       const targetId = btn.getAttribute('data-tab');
-      document.getElementById(targetId).classList.add('active');
+      const targetContent = document.getElementById(targetId);
+      if (targetContent) {
+        targetContent.classList.add('active');
+      }
     });
   });
 
@@ -86,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Toast Notifications
   // =================================================================
   function showToast(message, type = 'info') {
+    if (!toastContainer) return;
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     const icon = type === 'error' ? '⚠️' : (type === 'success' ? '✅' : 'ℹ️');
@@ -103,13 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Password Visibility Toggle
   // =================================================================
   function setupPwdToggle(inputEl, btnEl) {
-    btnEl.addEventListener('click', () => {
+    if (!inputEl || !btnEl) return;
+    btnEl.addEventListener('click', (e) => {
+      e.preventDefault();
       if (inputEl.type === 'password') {
         inputEl.type = 'text';
         btnEl.textContent = '🙈';
+        btnEl.setAttribute('title', 'Hide passphrase');
       } else {
         inputEl.type = 'password';
         btnEl.textContent = '👁️';
+        btnEl.setAttribute('title', 'Show passphrase');
       }
     });
   }
@@ -117,9 +130,9 @@ document.addEventListener('DOMContentLoaded', () => {
   setupPwdToggle(extractPassphraseInput, btnToggleExtractPwd);
 
   // =================================================================
-  // Secret Text Counter
+  // Secret Text Counter & Capacity Gauge
   // =================================================================
-  secretTextInput.addEventListener('input', () => {
+  function updateSecretCounter() {
     const text = secretTextInput.value;
     const bytes = new TextEncoder().encode(text).length;
     secretCharCounter.textContent = `${text.length.toLocaleString()} characters (${bytes.toLocaleString()} bytes)`;
@@ -132,16 +145,22 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         capacityMeterFill.style.background = 'linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald))';
       }
+    } else {
+      capacityMeterFill.style.width = '0%';
     }
-  });
+  }
+  secretTextInput.addEventListener('input', updateSecretCounter);
 
   // =================================================================
   // Drag & Drop File Upload Handlers
   // =================================================================
   function setupDropZone(dropZoneEl, fileInputEl, onFileSelected) {
+    if (!dropZoneEl || !fileInputEl) return;
+
     ['dragenter', 'dragover'].forEach(eventName => {
       dropZoneEl.addEventListener(eventName, (e) => {
         e.preventDefault();
+        e.stopPropagation();
         dropZoneEl.classList.add('dragover');
       });
     });
@@ -149,20 +168,29 @@ document.addEventListener('DOMContentLoaded', () => {
     ['dragleave', 'drop'].forEach(eventName => {
       dropZoneEl.addEventListener(eventName, (e) => {
         e.preventDefault();
+        e.stopPropagation();
         dropZoneEl.classList.remove('dragover');
       });
     });
 
     dropZoneEl.addEventListener('drop', (e) => {
       const files = e.dataTransfer.files;
-      if (files.length > 0) {
+      if (files && files.length > 0) {
         onFileSelected(files[0]);
       }
     });
 
     fileInputEl.addEventListener('change', () => {
-      if (fileInputEl.files.length > 0) {
+      if (fileInputEl.files && fileInputEl.files.length > 0) {
         onFileSelected(fileInputEl.files[0]);
+      }
+    });
+
+    // Keyboard support for dropzone
+    dropZoneEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInputEl.click();
       }
     });
   }
@@ -194,12 +222,13 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/capacity', { method: 'POST', body: formData });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ detail: 'Failed to analyze cover image' }));
         throw new Error(err.detail || 'Capacity calculation error');
       }
       const data = await res.json();
       currentCoverCapacity = data.capacity_bytes;
       coverSpecsText.textContent = `Dimensions: ${data.width} x ${data.height} (${data.mode}) | Max Usable Capacity: ${data.capacity_bytes.toLocaleString()} bytes (${data.capacity_kb} KB)`;
+      updateSecretCounter();
       showToast(`Cover loaded: ${data.width}x${data.height} (${data.capacity_kb} KB carrier capacity)`, 'success');
     } catch (e) {
       showToast(`Failed to analyze cover image: ${e.message}`, 'error');
@@ -240,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Please select a lossless cover image first.', 'error');
       return;
     }
-    const secretText = secretTextInput.value;
+    const secretText = secretTextInput.value.trim();
     if (!secretText) {
       showToast('Please enter a secret message to conceal.', 'error');
       return;
@@ -252,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnRunHide.disabled = true;
-    btnRunHide.innerHTML = '<span>⏳ Encrypting & Embedding LSBs...</span>';
+    btnRunHide.innerHTML = '<span class="spinner"></span> <span>Encrypting &amp; Embedding LSBs...</span>';
 
     const formData = new FormData();
     formData.append('cover', currentCoverFile);
@@ -262,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/hide', { method: 'POST', body: formData });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ detail: 'Encryption and embedding failed.' }));
         throw new Error(err.detail || 'Encryption and embedding failed.');
       }
       const data = await res.json();
@@ -276,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       stegoPreviewImg.src = lastStegoDataUrl;
       btnDownloadStego.href = lastStegoDataUrl;
-      btnDownloadStego.download = data.filename;
+      btnDownloadStego.download = data.filename || 'stego_image.png';
 
       metricPsnr.textContent = `${data.psnr_db.toFixed(2)} dB`;
       metricSsim.textContent = data.ssim.toFixed(6);
@@ -284,13 +313,13 @@ document.addEventListener('DOMContentLoaded', () => {
       metricCapacity.textContent = `${data.capacity_used_pct}%`;
       metricPayloadSize.textContent = `${data.encrypted_payload_bytes.toLocaleString()} bytes encrypted`;
 
-      showToast(`Encryption & Embedding complete! PSNR: ${data.psnr_db.toFixed(2)} dB`, 'success');
+      showToast(`Concealment complete! PSNR: ${data.psnr_db.toFixed(2)} dB (Imperceptible)`, 'success');
 
     } catch (e) {
       showToast(`Operation Failed: ${e.message}`, 'error');
     } finally {
       btnRunHide.disabled = false;
-      btnRunHide.innerHTML = '<span>⚡ Encrypt & Conceal Payload</span>';
+      btnRunHide.innerHTML = '<span class="btn-icon">⚡</span> <span class="btn-text">Encrypt &amp; Conceal Payload</span>';
     }
   });
 
@@ -309,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnRunExtract.disabled = true;
-    btnRunExtract.innerHTML = '<span>⏳ Extracting & Authenticating Tag...</span>';
+    btnRunExtract.innerHTML = '<span class="spinner"></span> <span>Extracting &amp; Authenticating Tag...</span>';
 
     const formData = new FormData();
     formData.append('stego_image', currentExtractFile);
@@ -318,19 +347,19 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/extract', { method: 'POST', body: formData });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ detail: 'Authentication or decryption failed.' }));
         throw new Error(err.detail || 'Decryption failed.');
       }
       const data = await res.json();
 
       extractPlaceholder.style.display = 'none';
       extractResultView.style.display = 'block';
-      btnCopyRecovered.style.display = 'inline-block';
+      btnCopyRecovered.style.display = 'inline-flex';
 
       recoveredTextDisplay.textContent = data.recovered_text;
       recoveredStatsText.textContent = `✅ 128-bit AEAD Tag Verified | Recovered: ${data.length_characters.toLocaleString()} characters (${data.length_bytes.toLocaleString()} bytes)`;
 
-      showToast('Payload extracted & decrypted successfully!', 'success');
+      showToast('Payload extracted & authenticated successfully!', 'success');
 
     } catch (e) {
       extractPlaceholder.style.display = 'block';
@@ -339,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast(`Extraction Failed: ${e.message}`, 'error');
     } finally {
       btnRunExtract.disabled = false;
-      btnRunExtract.innerHTML = '<span>🔓 Extract & Decrypt Payload</span>';
+      btnRunExtract.innerHTML = '<span class="btn-icon">🔓</span> <span class="btn-text">Extract &amp; Decrypt Payload</span>';
     }
   });
 
@@ -353,14 +382,17 @@ document.addEventListener('DOMContentLoaded', () => {
     navigator.clipboard.writeText(text).then(() => {
       btnCopyRecovered.textContent = '✅ Copied!';
       showToast('Secret message copied to clipboard!', 'info');
-      setTimeout(() => {
+      if (copyTimeoutId) clearTimeout(copyTimeoutId);
+      copyTimeoutId = setTimeout(() => {
         btnCopyRecovered.textContent = '📋 Copy';
       }, 2000);
+    }).catch(() => {
+      showToast('Failed to copy to clipboard.', 'error');
     });
   });
 
   // =================================================================
-  // Difference Map Modal
+  // Difference Map Modal Handling
   // =================================================================
   btnOpenDiffModal.addEventListener('click', () => {
     if (!lastCoverDataUrl || !lastStegoDataUrl || !lastDiffDataUrl) {
@@ -373,15 +405,25 @@ document.addEventListener('DOMContentLoaded', () => {
     modalDiffImg.src = lastDiffDataUrl;
 
     diffModal.classList.add('visible');
+    diffModal.focus();
   });
 
-  btnCloseDiffModal.addEventListener('click', () => {
+  function closeModal() {
     diffModal.classList.remove('visible');
-  });
+  }
+
+  btnCloseDiffModal.addEventListener('click', closeModal);
 
   diffModal.addEventListener('click', (e) => {
     if (e.target === diffModal) {
-      diffModal.classList.remove('visible');
+      closeModal();
+    }
+  });
+
+  // Close modal on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && diffModal.classList.contains('visible')) {
+      closeModal();
     }
   });
 });

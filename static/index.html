@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StegoCrypt | Image Encryption & Steganography Engine</title>
+  <meta name="description" content="Dual-Layer Authenticated Cryptography (AES-256-GCM + PBKDF2) and LSB Image Steganography Platform.">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand-wrapper">
+        <div class="brand-icon">🔒</div>
+        <div>
+          <h1 class="brand-title">StegoCrypt Studio</h1>
+          <p class="brand-subtitle">Dual-Layer Authenticated Encryption (AES-256-GCM) & LSB Steganography Engine</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge">AES-256-GCM</span>
+        <span class="badge">PBKDF2-SHA256</span>
+        <span class="badge emerald">Lossless Carrier (PNG/BMP)</span>
+      </div>
+    </header>
+
+    <!-- Tabs Navigation -->
+    <nav class="tabs-nav" role="tablist">
+      <button class="tab-btn active" data-tab="tab-hide" id="btn-tab-hide">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+        Encrypt & Hide
+      </button>
+      <button class="tab-btn" data-tab="tab-extract" id="btn-tab-extract">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+        Extract & Decrypt
+      </button>
+    </nav>
+
+    <!-- Tab 1: Encrypt & Hide -->
+    <section id="tab-hide" class="tab-content active">
+      <div class="workflow-grid">
+        <!-- Left Input Column -->
+        <div class="workflow-col">
+          <!-- 1. Cover Image Selection -->
+          <div class="glass-card">
+            <h2 class="card-title"><span class="step-badge">1</span> Select Lossless Cover Image</h2>
+            <div class="drop-zone" id="drop-cover-zone">
+              <input type="file" id="cover-file-input" accept=".png,.bmp">
+              <div class="drop-zone-icon">🖼️</div>
+              <div class="drop-zone-text">Drag & drop lossless cover image here or click to browse</div>
+              <div class="drop-zone-hint">Strictly supports PNG (.png) or Bitmap (.bmp)</div>
+            </div>
+
+            <!-- Image Metadata Card -->
+            <div class="image-preview-wrapper" id="cover-preview-card">
+              <img src="" alt="Cover thumbnail" class="preview-thumb" id="cover-thumb-img">
+              <div class="preview-meta">
+                <div class="preview-name" id="cover-file-name">cover.png</div>
+                <div class="preview-specs" id="cover-specs-text">Dimensions: 0 x 0 | Capacity: 0 bytes</div>
+                <div class="capacity-meter-bar">
+                  <div class="capacity-meter-fill" id="capacity-meter-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Secret Message -->
+          <div class="glass-card">
+            <h2 class="card-title"><span class="step-badge">2</span> Secret Plaintext Message</h2>
+            <div class="form-group">
+              <textarea class="textarea-custom" id="secret-text-input" placeholder="Type or paste your confidential message here..."></textarea>
+              <div class="char-counter" id="secret-char-counter">0 characters (0 bytes)</div>
+            </div>
+          </div>
+
+          <!-- 3. Encryption Passphrase -->
+          <div class="glass-card">
+            <h2 class="card-title"><span class="step-badge">3</span> Security Passphrase (PBKDF2-HMAC-SHA256)</h2>
+            <div class="form-group">
+              <div class="password-input-group">
+                <input type="password" class="input-custom" id="hide-passphrase-input" placeholder="Enter high-entropy passphrase...">
+                <button type="button" class="toggle-pwd-btn" id="btn-toggle-hide-pwd" title="Toggle password visibility">👁️</button>
+              </div>
+            </div>
+            <button type="button" class="btn-primary-action" id="btn-run-hide">
+              <span>⚡ Encrypt & Conceal Payload</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Output & Metrics Column -->
+        <div class="workflow-col">
+          <div class="glass-card">
+            <h2 class="card-title">📊 Stego Output & Visual Quality</h2>
+            
+            <!-- Result Placeholder (Before running) -->
+            <div class="result-placeholder" id="hide-placeholder">
+              <div class="result-placeholder-icon">🛡️</div>
+              <p>Upload a cover image and run encryption to generate a lossless stego carrier and calculate visual fidelity metrics.</p>
+            </div>
+
+            <!-- Result Display (After running) -->
+            <div class="stego-output-view" id="stego-output-view">
+              <img src="" alt="Stego carrier preview" class="stego-preview-img" id="stego-preview-img">
+              
+              <div class="metrics-grid">
+                <div class="metric-box">
+                  <div class="metric-value emerald" id="metric-psnr">-- dB</div>
+                  <div class="metric-label">Peak SNR (PSNR)</div>
+                  <div class="metric-sub">Imperceptible &gt; 35 dB</div>
+                </div>
+                <div class="metric-box">
+                  <div class="metric-value" id="metric-ssim">--</div>
+                  <div class="metric-label">Structural Index (SSIM)</div>
+                  <div class="metric-sub">Ideal: 1.000000</div>
+                </div>
+                <div class="metric-box">
+                  <div class="metric-value" id="metric-mse">--</div>
+                  <div class="metric-label">Mean Squared Error</div>
+                  <div class="metric-sub">Pixel delta variance</div>
+                </div>
+                <div class="metric-box">
+                  <div class="metric-value" id="metric-capacity">-- %</div>
+                  <div class="metric-label">Carrier Utilized</div>
+                  <div class="metric-sub" id="metric-payload-size">0 bytes embedded</div>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 10px; margin-top: 16px;">
+                <button type="button" class="btn-secondary" style="flex: 1;" id="btn-open-diff-modal">🔍 Inspect Difference Map</button>
+                <a href="#" download="stego_image.png" class="btn-success-action" style="flex: 1; text-decoration: none; justify-content: center;" id="btn-download-stego">💾 Download Stego PNG</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 2: Extract & Decrypt -->
+    <section id="tab-extract" class="tab-content">
+      <div class="workflow-grid" style="grid-template-columns: 1fr 1fr;">
+        <!-- Extract Input Column -->
+        <div class="workflow-col">
+          <div class="glass-card">
+            <h2 class="card-title"><span class="step-badge">1</span> Select Stego Image Carrier</h2>
+            <div class="drop-zone" id="drop-extract-zone">
+              <input type="file" id="extract-file-input" accept=".png,.bmp">
+              <div class="drop-zone-icon">📥</div>
+              <div class="drop-zone-text">Drag & drop stego image to decrypt</div>
+              <div class="drop-zone-hint">PNG or BMP steganographic carrier</div>
+            </div>
+
+            <div class="image-preview-wrapper" id="extract-preview-card">
+              <img src="" alt="Stego thumbnail" class="preview-thumb" id="extract-thumb-img">
+              <div class="preview-meta">
+                <div class="preview-name" id="extract-file-name">stego.png</div>
+                <div class="preview-specs" id="extract-specs-text">Dimensions: 0 x 0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card">
+            <h2 class="card-title"><span class="step-badge">2</span> Decryption Passphrase</h2>
+            <div class="form-group">
+              <div class="password-input-group">
+                <input type="password" class="input-custom" id="extract-passphrase-input" placeholder="Enter authentication passphrase...">
+                <button type="button" class="toggle-pwd-btn" id="btn-toggle-extract-pwd" title="Toggle password visibility">👁️</button>
+              </div>
+            </div>
+            <button type="button" class="btn-primary-action" id="btn-run-extract">
+              <span>🔓 Extract & Decrypt Payload</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Extract Output Column -->
+        <div class="workflow-col">
+          <div class="glass-card" style="height: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h2 class="card-title" style="margin-bottom: 0;">📜 Recovered Secret Plaintext</h2>
+              <button type="button" class="btn-secondary" id="btn-copy-recovered" style="display: none;">📋 Copy</button>
+            </div>
+            
+            <div class="result-placeholder" id="extract-placeholder">
+              <div class="result-placeholder-icon">🔑</div>
+              <p>Upload a stego image and provide the secret passphrase to authenticate and extract the confidential payload.</p>
+            </div>
+
+            <div id="extract-result-view" style="display: none;">
+              <div class="recovered-text-box" id="recovered-text-display"></div>
+              <div style="font-size: 12px; color: var(--accent-emerald);" id="recovered-stats-text">✅ Authentication Tag Verified (128-bit GCM match)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Difference Map Modal -->
+    <div class="modal-overlay" id="diff-modal">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h2 style="font-family: 'Outfit', sans-serif; font-size: 18px; color: var(--text-main);">🔍 Visual Difference Map & Steganalysis Heatmap</h2>
+          <button class="modal-close-btn" id="btn-close-diff-modal">&times;</button>
+        </div>
+
+        <div class="diff-comparison-grid">
+          <div class="diff-box">
+            <div class="diff-box-title">Original Cover Image</div>
+            <img src="" id="modal-cover-img" alt="Cover">
+          </div>
+          <div class="diff-box">
+            <div class="diff-box-title">Stego Carrier Image</div>
+            <img src="" id="modal-stego-img" alt="Stego">
+          </div>
+          <div class="diff-box">
+            <div class="diff-box-title">Amplified LSB Heatmap (20x)</div>
+            <img src="" id="modal-diff-img" alt="Difference Heatmap">
+          </div>
+        </div>
+
+        <p style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+          <strong>Steganalysis Insight:</strong> LSB substitution alters pixel intensities by at most ±1 unit, which is invisible to the naked eye. The amplified difference map multiplies pixel differences by 20x to reveal the exact distribution of embedded carrier bits for auditing and verification.
+        </p>
+      </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toast-container"></div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

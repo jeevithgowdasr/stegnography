@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "image-stego"
+version = "1.0.0"
+description = "A secure image encryption and steganography system in Python"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "cryptography>=42.0.0",
+    "Pillow>=10.2.0",
+    "numpy>=1.26.0",
+    "opencv-python>=4.9.0.80",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+]
+
+[project.scripts]
+image-stego = "image_stego.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
